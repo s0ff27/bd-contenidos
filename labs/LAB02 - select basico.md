@@ -667,8 +667,10 @@ Salida:
 
 Solución:
 ```sql
-
-
+SELECT	
+		avg(reproducciones)
+FROM cancion
+		where reproducciones > 1000000;
 ```
 
 Resultado:
