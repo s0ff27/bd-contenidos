@@ -479,8 +479,11 @@ Escribe una consulta que devuelva todas las columnas de las canciones y añada u
 
 Solución:
 ```sql
-
-
+SELECT  *,
+		coalesce(duracion, reproducciones, me_gusta, valoracion, -1) as primer_dato
+FROM cancion
+		ordered by id_cancion desc
+		limit 10;
 ```
 
 Resultado:
