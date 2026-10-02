@@ -593,6 +593,9 @@ Escribe una consulta que cuente las canciones que **no** están en inglés, cont
 Solución:
 
 ```sql
+SELECT	count(*) as no_ingles
+FROM cancion
+		where idioma not in ('EN') or idioma is null;
 ```
 
 Resultado:
