@@ -167,8 +167,16 @@ Para emitir una canción en la radio hay que añadirle una cuña publicitaria. E
 
 Solución:
 ```sql
-
-
+SELECT  titulo,
+		pais,
+		duracion,
+		case 
+		when pais = ('Reino Unido') then round(((duracion+30)/60.0), 2)
+		when pais in ('España') then round(((duracion+45)/60.0), 2)
+		end as duracion_radio_min
+FROM cancion
+	  order by duracion desc
+	  limit 20;
 ```
 
 Resultado:
@@ -471,8 +479,11 @@ Escribe una consulta que devuelva todas las columnas de las canciones y añada u
 
 Solución:
 ```sql
-
-
+SELECT  *,
+		coalesce(duracion, reproducciones, me_gusta, valoracion, -1) as primer_dato
+FROM cancion
+		ordered by id_cancion desc
+		limit 10;
 ```
 
 Resultado:
@@ -582,6 +593,9 @@ Escribe una consulta que cuente las canciones que **no** están en inglés, cont
 Solución:
 
 ```sql
+SELECT	count(*) as no_ingles
+FROM cancion
+		where idioma not in ('EN') or idioma is null;
 ```
 
 Resultado:
@@ -653,8 +667,10 @@ Salida:
 
 Solución:
 ```sql
-
-
+SELECT	
+		avg(reproducciones)
+FROM cancion
+		where reproducciones > 1000000;
 ```
 
 Resultado:
@@ -693,8 +709,9 @@ Salida:
 
 Solución:
 ```sql
-
-
+SELECT	
+    count(distinct anio) as anios_distintos
+FROM cancion
 ```
 
 Resultado:
@@ -763,8 +780,11 @@ Escribe una consulta que muestre cada año de publicación (`anio`) distinto en 
 
 Solución:
 ```sql
-
-
+select
+	anio, 
+    count(*) as canciones_mismo_anio
+from cancion
+group by anio;
 ```
 
 Resultado:
@@ -880,8 +900,11 @@ Escribe una consulta que cuente el número de canciones de cada una de las sigui
 
 Solución:
 ```sql
-
-
+select 
+    count(case when duracion < 200 then 1 END) AS corta,
+    count(case when duracion between 200 and 300 then 1 end) as media,
+    count(case when duracion > 300 then 1 end) as larga
+from cancion;
 ```
 
 Resultado:
