@@ -24,7 +24,7 @@ Solución:
 SELECT  nombre,
 		director,
 		fechaIngresoDirector as fecha,
-		CAST( strftime('%m', fechaIngresoDirector) as INTEGER) as mes
+		strftime('%m', fechaIngresoDirector) as mes
 	from departamento
 	order by mes desc
 	limit 1;
