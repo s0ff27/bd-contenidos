@@ -21,7 +21,13 @@ Escribe una consulta para obtener el nombre del departamento, su director, su fe
 
 Solución:
 ```sql
-
+SELECT  nombre,
+		director,
+		fechaIngresoDirector as fecha,
+		CAST( strftime('%m', fechaIngresoDirector) as INTEGER) as mes
+	from departamento
+	order by mes desc
+	limit 1;
 ```
 
 Tabla resultado:
