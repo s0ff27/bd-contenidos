@@ -52,7 +52,14 @@ Escribe una consulta que muestre, para cada departamento, el número de empleado
 
 Solución:
 ```sql
-
+SELECT
+    dpto,
+    COUNT(*) AS num_empleados,
+    SUM(sueldo) AS sueldo_total
+FROM EMPLEADO
+GROUP BY dpto
+HAVING COUNT(*) > 1
+ORDER BY sueldo_total DESC;
 ```
 
 **Tabla resultado:**
@@ -76,7 +83,17 @@ Escribe una consulta que muestre el nombre y apellido1 del empleado, el nombre d
 
 Solución:
 ```sql
-
+SELECT
+    E.nombre AS nombre_empleado,
+    E.apellido1,
+    P.nombre AS nombre_proyecto,
+    D.nombre AS nombre_departamento
+FROM EMPLEADO E
+INNER JOIN TRABAJA_EN T ON E.dni = T.empleado
+INNER JOIN PROYECTO P ON T.proyecto = P.numero
+INNER JOIN DEPARTAMENTO D ON P.dpto = D.numero
+WHERE E.apellido1 LIKE 'P%'
+ORDER BY E.nombre ASC;
 ```
 
 **Tabla resultado:**
@@ -106,7 +123,16 @@ Ordena por número de empleados descendente.
 
 Solución:
 ```sql
-
+SELECT
+    CASE
+        WHEN sueldo < 30000 THEN 'Junior'
+        WHEN sueldo BETWEEN 30000 AND 45000 THEN 'Senior'
+        ELSE 'Executive'
+    END AS categoria_salarial,
+    COUNT(*) AS num_empleados
+FROM EMPLEADO
+GROUP BY categoria_salarial
+ORDER BY num_empleados DESC;
 ```
 
 **Tabla resultado:**
@@ -136,7 +162,21 @@ Ordena por total de horas descendente y, luego, alfabéticamente por apellido y 
 
 Solución:
 ```sql
-
+WITH horas_empleado AS (
+    SELECT
+        empleado,
+        SUM(horas) AS total_horas
+    FROM TRABAJA_EN
+    GROUP BY empleado
+)
+SELECT
+    E.nombre,
+    E.apellido1,
+    H.total_horas
+FROM EMPLEADO E
+INNER JOIN horas_empleado H ON E.dni = H.empleado
+WHERE H.total_horas > 30
+ORDER BY H.total_horas DESC, E.apellido1 ASC, E.nombre ASC;
 ```
 
 **Tabla resultado:**
@@ -165,7 +205,16 @@ Escribe una consulta que muestre el nombre de los departamentos que tienen al me
 
 Solución:
 ```sql
-
+SELECT D.nombre AS nombre_departamento
+FROM DEPARTAMENTO D
+WHERE EXISTS (
+    SELECT 1
+    FROM EMPLEADO E
+    WHERE E.dpto = D.numero
+      AND (SELECT COUNT(DISTINCT T.proyecto)
+           FROM TRABAJA_EN T
+           WHERE T.empleado = E.dni ) > 1)
+ORDER BY D.nombre ASC;
 ```
 
 **Tabla resultado:**
@@ -195,7 +244,16 @@ Ordena por número de familiares descendente y luego por nombre.
 
 Solución:
 ```sql
-
+SELECT
+    E.nombre,
+    E.apellido1,
+    COUNT(DISTINCT F.nombre) AS num_familiares,
+    COUNT(DISTINCT T.proyecto) AS num_proyectos
+FROM EMPLEADO E
+LEFT JOIN FAMILIAR F ON E.dni = F.empleado
+LEFT JOIN TRABAJA_EN T ON E.dni = T.empleado
+GROUP BY E.dni, E.nombre, E.apellido1
+ORDER BY num_familiares DESC, E.nombre ASC;
 ```
 
 **Tabla resultado:**
@@ -227,7 +285,24 @@ Escribe una consulta que devuelva el nombre y apellido1 de los empleados que **n
 Solución:
 
 ```sql
-
+WITH empleados_filtrados AS (
+    SELECT dni FROM EMPLEADO
+    EXCEPT
+    SELECT supervisor
+    FROM EMPLEADO
+    WHERE supervisor IS NOT NULL
+    EXCEPT
+    SELECT director
+    FROM DEPARTAMENTO
+    EXCEPT
+    SELECT empleado
+    FROM FAMILIAR)
+SELECT
+    E.nombre,
+    E.apellido1
+FROM EMPLEADO E
+INNER JOIN empleados_filtrados F ON E.dni = F.dni
+ORDER BY E.apellido1 ASC;
 ```
 
   
@@ -273,7 +348,70 @@ Escribe una consulta que genere un informe completo mostrando:
 
 Solución:
 ```sql
-
+WITH resumen_empleados AS (
+    SELECT
+        D.numero AS dpto,
+        COUNT(E.dni) AS num_empleados
+    FROM DEPARTAMENTO D
+    LEFT JOIN EMPLEADO E
+        ON E.dpto = D.numero
+        AND E.dni <> D.director
+    GROUP BY D.numero),
+resumen_proyectos AS (
+    SELECT
+        D.numero AS dpto,
+        COUNT(P.numero) AS num_proyectos
+    FROM DEPARTAMENTO D
+    LEFT JOIN PROYECTO P
+        ON P.dpto = D.numero
+    GROUP BY D.numero),
+resumen_horas AS (
+    SELECT
+        D.numero AS dpto,
+        COALESCE(SUM(T.horas), 0) AS total_horas
+    FROM DEPARTAMENTO D
+    LEFT JOIN PROYECTO P
+        ON P.dpto = D.numero
+    LEFT JOIN TRABAJA_EN T
+        ON T.proyecto = P.numero
+    LEFT JOIN EMPLEADO E
+        ON E.dni = T.empleado
+        AND E.dpto = D.numero
+        AND E.dni <> D.director
+    WHERE E.dni IS NOT NULL OR T.empleado IS NULL
+    GROUP BY D.numero),
+informe AS (
+    SELECT
+        D.nombre AS nombre_departamento,
+        DIR.nombre || ' ' || DIR.apellido1 AS director_completo,
+        RE.num_empleados,
+        RP.num_proyectos,
+        ROUND(
+            COALESCE(
+                1.0 * RH.total_horas / NULLIF(RE.num_empleados, 0),0 ),1
+        ) AS promedio_horas
+    FROM DEPARTAMENTO D
+    LEFT JOIN EMPLEADO DIR
+        ON DIR.dni = D.director
+    LEFT JOIN resumen_empleados RE
+        ON RE.dpto = D.numero
+    LEFT JOIN resumen_proyectos RP
+        ON RP.dpto = D.numero
+    LEFT JOIN resumen_horas RH
+        ON RH.dpto = D.numero)
+SELECT
+    nombre_departamento,
+    director_completo,
+    num_empleados,
+    num_proyectos,
+    promedio_horas,
+    CASE
+        WHEN promedio_horas > 30 THEN 'Sobrecargado'
+        WHEN promedio_horas >= 15 THEN 'Normal'
+        ELSE 'Baja carga'
+    END AS estado_carga
+FROM informe
+ORDER BY promedio_horas DESC;
 ```
 
 **Tabla resultado:**
@@ -301,7 +439,16 @@ El departamento de RRHH quiere organizar las celebraciones de cumpleaños. Escri
 Solución:
 
 ```sql
-
+SELECT
+    CAST(strftime('%m', fechaNac) AS INTEGER) AS mes,
+    COUNT(*) AS num_personas
+FROM (
+    SELECT fechaNac FROM EMPLEADO
+    UNION ALL
+    SELECT fechaNac FROM FAMILIAR
+)
+GROUP BY mes
+ORDER BY num_personas DESC, mes ASC;
 ```
   
 **Tabla resultado:**
@@ -336,7 +483,18 @@ Escribe una consulta que muestre, para cada departamento: su nombre, el número 
 Solución:
 
 ```sql
-
+SELECT
+    D.nombre AS departamento,
+    COUNT(E.dni) FILTER (WHERE E.sexo = 'M') AS hombres,
+    COUNT(E.dni) FILTER (WHERE E.sexo = 'F') AS mujeres,
+    ROUND(
+        100.0 * COUNT(E.dni) FILTER (WHERE E.sexo = 'F')/ NULLIF(COUNT(E.dni), 0),1) AS pct_mujeres,
+    COALESCE(AVG(E.sueldo) FILTER (WHERE E.sexo = 'F'), 0) AS sueldo_medio_f,
+    COALESCE(AVG(E.sueldo) FILTER (WHERE E.sexo = 'M'), 0) AS sueldo_medio_m
+FROM DEPARTAMENTO D
+LEFT JOIN EMPLEADO E ON D.numero = E.dpto
+GROUP BY D.numero, D.nombre
+ORDER BY pct_mujeres DESC;
 ```
 
 **Tabla resultado:**
@@ -363,7 +521,16 @@ Escribe una consulta que devuelva las parejas de empleados **distintos** que tra
 Solución:
 
 ```sql
-
+SELECT
+    E1.nombre || ' ' || E1.apellido1 AS empleado1,
+    E2.nombre || ' ' || E2.apellido1 AS empleado2,
+    E1.dpto,
+    E1.sueldo
+FROM EMPLEADO E1
+INNER JOIN EMPLEADO E2
+    ON E1.dpto = E2.dpto
+    AND E1.sueldo = E2.sueldo
+    AND E1.dni < E2.dni;
 ```
 
 **Tabla resultado:**
@@ -387,7 +554,16 @@ Escribe una consulta que devuelva el nombre de los proyectos en los que **no** t
 
 Solución:
 ```sql
-
+SELECT
+    P.nombre AS nombre_proyecto
+FROM PROYECTO P
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM TRABAJA_EN T
+    INNER JOIN EMPLEADO E ON T.empleado = E.dni
+    WHERE T.proyecto = P.numero
+      AND E.sexo = 'F')
+ORDER BY P.nombre ASC;
 ```
 
 **Tabla resultado:**
@@ -412,7 +588,15 @@ La empresa decide corregir desigualdades internas: sube un 5% (redondeado al ent
 Solución:
 
 ```sql
-
+UPDATE EMPLEADO AS E
+SET sueldo = ROUND(sueldo * 1.05, 0)
+WHERE sueldo < (
+    SELECT AVG(E2.sueldo)
+    FROM EMPLEADO AS E2
+    WHERE E2.dpto = E.dpto);
+SELECT nombre, apellido1, sueldo
+FROM EMPLEADO
+ORDER BY apellido1;
 ```
 
 **Tabla resultado** (tras la comprobación):
